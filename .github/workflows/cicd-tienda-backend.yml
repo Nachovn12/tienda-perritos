@@ -26,24 +26,29 @@ jobs:
       uses: aws-actions/amazon-ecr-login@v1
 
     - name: Build imagen Backend y push a ECR
+      env:
+        ECR_REPO: ${{ secrets.ECR_REPO_URL_BACKEND }}
       run: |
         cd backend
         docker build -t tienda-backend .
-        docker tag tienda-backend:latest ${{ secrets.ECR_REPO_URL_BACKEND }}:latest
-        docker push ${{ secrets.ECR_REPO_URL_BACKEND }}:latest
+        docker tag tienda-backend:latest $ECR_REPO:latest
+        docker push $ECR_REPO:latest
 
     - name: Desplegar Backend vía SSM
+      env:
+        ECR_REPO: ${{ secrets.ECR_REPO_URL_BACKEND }}
+        ECR_REG: ${{ secrets.ECR_REGISTRY }}
+        REGION: ${{ secrets.AWS_REGION }}
+        INSTANCE: ${{ secrets.EC2_BACKEND_INSTANCE_ID }}
       run: |
         aws ssm send-command \
-          --instance-ids ${{ secrets.EC2_BACKEND_INSTANCE_ID }} \
+          --instance-ids $INSTANCE \
           --document-name "AWS-RunShellScript" \
-          --comment "Actualizar tienda-backend desde ECR" \
-          --parameters '{"commands":[
-            "set -e",
-            "aws ecr get-login-password --region '${{ secrets.AWS_REGION }}' | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}",
-            "docker pull ${{ secrets.ECR_REPO_URL_BACKEND }}:latest",
-            "docker stop tienda-backend || true",
-            "docker rm tienda-backend || true",
-            "docker run -d --name tienda-backend -p 3001:3001 ${{ secrets.ECR_REPO_URL_BACKEND }}:latest"
-          ]}' \
+          --parameters "{\"commands\":[
+            \"aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_REG\",
+            \"docker pull $ECR_REPO:latest\",
+            \"docker stop tienda-backend || true\",
+            \"docker rm tienda-backend || true\",
+            \"docker run -d --name tienda-backend -p 3001:3001 $ECR_REPO:latest\"
+          ]}" \
           --output text
