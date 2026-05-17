@@ -2,53 +2,54 @@ name: CI/CD Tienda Perritos - Frontend
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["deploy"]
     paths:
       - "frontend/**"
+      - ".github/workflows/cicd-tienda-frontend.yml"
 
 jobs:
   build-push-deploy-frontend:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout código
-      uses: actions/checkout@v3
+      - name: Checkout codigo
+        uses: actions/checkout@v4
 
-    - name: Configurar credenciales AWS
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-        aws-region: ${{ secrets.AWS_REGION }}
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Login en Amazon ECR (runner)
-      uses: aws-actions/amazon-ecr-login@v1
+      - name: Login en Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build imagen Frontend y push a ECR
-      env:
-        ECR_REPO: ${{ secrets.ECR_REPO_URL_FRONTEND }}
-      run: |
-        cd frontend
-        docker build -t tienda-frontend .
-        docker tag tienda-frontend:latest $ECR_REPO:latest
-        docker push $ECR_REPO:latest
+      - name: Build imagen Frontend y push a ECR
+        env:
+          ECR_REPO: ${{ secrets.ECR_REPO_URL_FRONTEND }}
+        run: |
+          cd frontend
+          docker build -t tienda-frontend .
+          docker tag tienda-frontend:latest $ECR_REPO:latest
+          docker push $ECR_REPO:latest
 
-    - name: Desplegar Frontend vía SSM
-      env:
-        ECR_REPO: ${{ secrets.ECR_REPO_URL_FRONTEND }}
-        ECR_REG: ${{ secrets.ECR_REGISTRY }}
-        REGION: ${{ secrets.AWS_REGION }}
-        INSTANCE: ${{ secrets.EC2_FRONTEND_INSTANCE_ID }}
-      run: |
-        aws ssm send-command \
-          --instance-ids $INSTANCE \
-          --document-name "AWS-RunShellScript" \
-          --parameters "{\"commands\":[
-            \"aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_REG\",
-            \"docker pull $ECR_REPO:latest\",
-            \"docker stop tienda-frontend || true\",
-            \"docker rm tienda-frontend || true\",
-            \"docker run -d --name tienda-frontend -p 80:80 $ECR_REPO:latest\"
-          ]}" \
-          --output text
+      - name: Desplegar Frontend via SSM
+        env:
+          ECR_REPO: ${{ secrets.ECR_REPO_URL_FRONTEND }}
+          ECR_REG: ${{ secrets.ECR_REGISTRY }}
+          REGION: ${{ secrets.AWS_REGION }}
+          INSTANCE: ${{ secrets.EC2_FRONTEND_INSTANCE_ID }}
+        run: |
+          aws ssm send-command \
+            --instance-ids "$INSTANCE" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "commands=[
+              \"aws ecr get-login-password --region $REGION | sudo docker login --username AWS --password-stdin $ECR_REG\",
+              \"sudo docker pull $ECR_REPO:latest\",
+              \"sudo docker stop tienda-frontend || true\",
+              \"sudo docker rm tienda-frontend || true\",
+              \"sudo docker run -d --name tienda-frontend --restart unless-stopped -p 80:8080 $ECR_REPO:latest\"
+            ]" \
+            --output text
