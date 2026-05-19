@@ -6,6 +6,7 @@ Frontend simple para CRUD de productos de la tienda de perritos.*/
 // El navegador llama a /api/productos y Nginx redirige al Backend por red privada.
 const API_BASE = "/api/productos";
 
+// Prueba cambios parcial 2
 let editandoId = null;
 
 const tbody = document.getElementById("tbodyProductos");
