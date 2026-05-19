@@ -8,7 +8,7 @@
 const API_BASE = "http://98.81.210.14:3001/api/productos";
 
 // Ejemplo: const API_BASE = "http://10.0.2.30:3001/api/productos";
-
+// Prueba
 
 let editandoId = null;
 
