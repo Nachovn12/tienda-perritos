@@ -19,3 +19,5 @@ INSERT INTO productos (nombre, descripcion, precio, stock) VALUES
 -- v3
 
 -- Prueba CI/CD EP2 DB
+
+-- Reintento CI/CD EP2 DB con credenciales AWS actualizadas
